@@ -29,10 +29,13 @@ import (
 	"github.com/faiface/beep/speaker"
 	"github.com/mattn/go-shellwords"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var sound bool
 var email bool
+var configFile string
+var config Config
 
 // execCmd represents the exec command
 var execCmd = &cobra.Command{
@@ -60,14 +63,14 @@ var execCmd = &cobra.Command{
 			out, err := exec.Command(c[0]).Output()
 			fmt.Println(string(out))
 			if err != nil {
-				ErrorAlert()
+				ErrorAlert(err)
 				log.Fatal(err)
 			}
 		default:
 			out, err := exec.Command(c[0], c[1:]...).Output()
 			fmt.Println(string(out))
 			if err != nil {
-				ErrorAlert()
+				ErrorAlert(err)
 				log.Fatal(err)
 			}
 		}
@@ -78,11 +81,32 @@ func init() {
 	rootCmd.AddCommand(execCmd)
 	execCmd.PersistentFlags().BoolVarP(&sound, "sound", "s", false, "Alert's sound enable flag")
 	execCmd.PersistentFlags().BoolVarP(&email, "mail", "m", false, "Alert e-mail enable flag")
+	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "~/.NyArN_config.yaml", "config file name")
 }
 
-func ErrorAlert() {
+type Config struct {
+	soundfile string
+	user      string
+	password  string
+	rcpt      string
+	host      string
+}
+
+func ErrorAlert(execError error) {
+	viper.SetConfigFile(configFile)
+
+	if err := viper.ReadConfig(nil); err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	if err := viper.Unmarshal(&config); err != nil {
+		log.Fatal(err)
+		return
+	}
+
 	if email {
-		err := SendEmail()
+		err := SendEmail(config.user, config.password, config.rcpt, config.host, execError)
 		if err != nil {
 			log.Fatal(err)
 			return
@@ -90,7 +114,7 @@ func ErrorAlert() {
 	}
 
 	if sound {
-		err := Sound(file)
+		err := Sound(config.soundfile)
 		if err != nil {
 			log.Fatal(err)
 			return
