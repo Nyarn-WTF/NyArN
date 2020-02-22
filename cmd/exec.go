@@ -84,6 +84,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "~/.NyArN_config.yaml", "config file name")
 }
 
+//Config ファイルから読み込む構造体
 type Config struct {
 	soundfile string
 	user      string
@@ -92,6 +93,7 @@ type Config struct {
 	host      string
 }
 
+//ErrorAlert アラートまとめ関数
 func ErrorAlert(execError error) {
 	viper.SetConfigFile(configFile)
 
@@ -122,6 +124,7 @@ func ErrorAlert(execError error) {
 	}
 }
 
+//Sound 音を鳴らす関数
 func Sound(path string) error {
 	f, err := os.Open(path)
 	if err != nil {
@@ -147,6 +150,7 @@ func Sound(path string) error {
 	return nil
 }
 
+//SendEmail メールを送る関数
 func SendEmail(user string, password string, rcpt string, host string, message error) error {
 	server := host + ":" + "465"
 	body := message.Error()
