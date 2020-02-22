@@ -1,9 +1,9 @@
 Nya-Alert-Neko is a build alert watchdog.
 
-# Instalation
+# Installation
 1. Install go env -> [https://golang.org/](https://golang.org/)
 2. Clone this repo \
-   `git clone this repo`
+   `git clone https://github.com/Nyarn-WTF/NyArN.git`
 3. build & install
    ```
    cd NyArn
