@@ -1,5 +1,5 @@
-soundfile: "cat.mp3"
-user: "foo"
-password: "bar"
-rcpt: "hoge"
-host: "huga@piyo.com"
+soundfile: "cat.mp3" #Alert sound
+user: "foo" #email user
+password: "bar" #email passwd
+rcpt: "hoge" #email destination
+host: "huga@piyo.com" #sever host

@@ -9,7 +9,9 @@ Nya-Alert-Neko is a build alert watchdog.
    cd NyArn
    go build
    go install
+   cp ./config.yaml ~/.NyArN_config.yaml
    ```
+   and,edit `~/.NyArN_config.yaml`
 4. Add install-path \
    In ~/.zshrc \
    `
