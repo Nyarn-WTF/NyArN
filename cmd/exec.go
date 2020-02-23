@@ -16,7 +16,6 @@ limitations under the License.
 package cmd
 
 import (
-	"crypto/tls"
 	"fmt"
 	"log"
 	"net/smtp"
@@ -28,6 +27,7 @@ import (
 	"github.com/faiface/beep/mp3"
 	"github.com/faiface/beep/speaker"
 	"github.com/mattn/go-shellwords"
+	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -63,14 +63,14 @@ var execCmd = &cobra.Command{
 			out, err := exec.Command(c[0]).Output()
 			fmt.Println(string(out))
 			if err != nil {
-				ErrorAlert(err)
+				ErrorAlert(string(out) + "\n\nstderr output\n" + err.Error())
 				log.Fatal(err)
 			}
 		default:
 			out, err := exec.Command(c[0], c[1:]...).Output()
 			fmt.Println(string(out))
 			if err != nil {
-				ErrorAlert(err)
+				ErrorAlert(string(out) + "\n\nstderr output\n" + err.Error())
 				log.Fatal(err)
 			}
 		}
@@ -78,26 +78,31 @@ var execCmd = &cobra.Command{
 }
 
 func init() {
+	home, err := homedir.Dir()
+	if err != nil {
+		log.Fatal(err)
+	}
 	rootCmd.AddCommand(execCmd)
 	execCmd.PersistentFlags().BoolVarP(&sound, "sound", "s", false, "Alert's sound enable flag")
 	execCmd.PersistentFlags().BoolVarP(&email, "mail", "m", false, "Alert e-mail enable flag")
-	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "~/.NyArN_config.yaml", "config file name")
+	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", home+"/.NyArN_config.yaml", "config file name")
 }
 
 //Config ファイルから読み込む構造体
 type Config struct {
-	soundfile string
-	user      string
-	password  string
-	rcpt      string
-	host      string
+	Soundfile string
+	Username  string
+	Password  string
+	Rcpt      string
+	Host      string
 }
 
 //ErrorAlert アラートまとめ関数
-func ErrorAlert(execError error) {
+func ErrorAlert(execError string) {
+	fmt.Println(configFile)
 	viper.SetConfigFile(configFile)
 
-	if err := viper.ReadConfig(nil); err != nil {
+	if err := viper.ReadInConfig(); err != nil {
 		log.Fatal(err)
 		return
 	}
@@ -108,7 +113,7 @@ func ErrorAlert(execError error) {
 	}
 
 	if email {
-		err := SendEmail(config.user, config.password, config.rcpt, config.host, execError)
+		err := SendEmail(config.Username, config.Password, config.Rcpt, config.Host, execError)
 		if err != nil {
 			log.Fatal(err)
 			return
@@ -116,7 +121,7 @@ func ErrorAlert(execError error) {
 	}
 
 	if sound {
-		err := Sound(config.soundfile)
+		err := Sound(config.Soundfile)
 		if err != nil {
 			log.Fatal(err)
 			return
@@ -151,61 +156,20 @@ func Sound(path string) error {
 }
 
 //SendEmail メールを送る関数
-func SendEmail(user string, password string, rcpt string, host string, message error) error {
-	server := host + ":" + "465"
-	body := message.Error()
+func SendEmail(username string, password string, rcpt string, host string, message string) error {
+	server := host + ":" + "587"
+	fmt.Println(server)
+	body := message
 
-	tlsconfig := &tls.Config{
-		InsecureSkipVerify: true,
-		ServerName:         host,
-	}
+	auth := smtp.PlainAuth("", username, password, host)
 
-	auth := smtp.PlainAuth("", user, password, host)
-
-	con, err := tls.Dial("tcp", server, tlsconfig)
-	if err != nil {
+	sendMessage := "To: " + rcpt + "\r\n"
+	sendMessage += "Subject: " + "NyArN Build Error" + "\r\n\r\n"
+	sendMessage += body + "\r\n"
+	fmt.Println(username)
+	if err := smtp.SendMail(server, auth, username, []string{rcpt}, []byte(sendMessage)); err != nil {
 		log.Fatal(err)
 		return err
 	}
-
-	c, err := smtp.NewClient(con, host)
-	if err != nil {
-		log.Fatal(err)
-		return err
-	}
-
-	if err = c.Auth(auth); err != nil {
-		log.Fatal(err)
-		return err
-	}
-
-	if err = c.Mail(user); err != nil {
-		log.Fatal(err)
-		return err
-	}
-
-	if err = c.Rcpt(rcpt); err != nil {
-		log.Fatal(err)
-		return err
-	}
-
-	w, err := c.Data()
-	if err != nil {
-		log.Fatal(err)
-		return err
-	}
-
-	sendMessage := "From: " + user + "\r\n"
-	sendMessage += "To: " + rcpt + "\r\n"
-	sendMessage += "\n" + body
-
-	_, err = w.Write([]byte(sendMessage))
-	if err != nil {
-		log.Fatal(err)
-		return err
-	}
-	defer w.Close()
-
-	c.Quit()
 	return nil
 }
